@@ -6,11 +6,11 @@ import {
   Calendar, Heart, ChevronDown, Sparkles, Feather, Coffee, Moon,
   Sun, Trees, Loader2, Check, Users, Lock, Globe, LogOut, User as UserIcon,
   Mail, KeyRound, ArrowRight, Eye, MessageCircle, Flag, Send, UserPlus, UserCheck,
-  Video, Film, ArrowLeft, HardDrive, Cloud, CloudOff, RefreshCw
+  Video, Film, ArrowLeft, HardDrive, Cloud, CloudOff, RefreshCw, Bell, Shield, AlertCircle
 } from 'lucide-react'
 import {
   auth, onAuthStateChanged, signInWithGoogle, signInEmail, signUpEmail, signOut, authedFetch,
-  completeRedirectSignIn, connectDrive, disconnectDrive, isDriveConnected, getDriveToken
+  completeRedirectSignIn, connectDrive, disconnectDrive, isDriveConnected, resetPassword
 } from '@/lib/firebase'
 
 const THEMES = [
@@ -108,19 +108,31 @@ function SignInScreen() {
   const [displayName, setDisplayName] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [info, setInfo] = useState('')
+  const [showReset, setShowReset] = useState(false)
 
   const google = async () => {
-    setErr(''); setBusy(true)
+    setErr(''); setInfo(''); setBusy(true)
     try { await signInWithGoogle() }
     catch (e) { setErr(e?.message || 'Google sign-in failed') }
     finally { setBusy(false) }
   }
   const submit = async (e) => {
-    e.preventDefault(); setErr(''); setBusy(true)
+    e.preventDefault(); setErr(''); setInfo(''); setBusy(true)
     try {
       if (mode === 'signin') await signInEmail(email, password)
       else await signUpEmail(email, password, displayName || email.split('@')[0])
     } catch (e) { setErr(e?.message?.replace('Firebase: ', '') || 'Authentication failed') }
+    finally { setBusy(false) }
+  }
+  const doReset = async () => {
+    if (!email) { setErr('Enter your email above first, then tap "Forgot password?"'); return }
+    setBusy(true); setErr(''); setInfo('')
+    try {
+      await resetPassword(email)
+      setInfo(`Password reset link sent to ${email}. Check your inbox.`)
+      setShowReset(false)
+    } catch (e) { setErr(e?.message?.replace('Firebase: ', '') || 'Reset failed') }
     finally { setBusy(false) }
   }
 
@@ -162,6 +174,14 @@ function SignInScreen() {
               <input required type="password" minLength={6} value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (min 6 chars)" className="journal-input w-full pl-10 pr-3 py-3 rounded-xl text-sm" />
             </div>
             {err && <div className="text-xs text-red-500 px-1">{err}</div>}
+            {info && <div className="text-xs text-green-600 px-1">{info}</div>}
+            {mode === 'signin' && (
+              <div className="text-right">
+                <button type="button" onClick={doReset} disabled={busy} className="text-xs journal-muted hover:underline disabled:opacity-50">
+                  Forgot password?
+                </button>
+              </div>
+            )}
             <button type="submit" disabled={busy} className="journal-btn-primary w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium disabled:opacity-50">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
               {mode === 'signin' ? 'Sign in' : 'Create account'}
@@ -684,6 +704,98 @@ function AuthorView({ uid, authUser, presence, onBack, onLike, onReport, onView,
   )
 }
 
+// ---------- Admin Panel ----------
+function AdminPanel({ open, onClose }) {
+  const [reports, setReports] = useState(null)
+  const [busy, setBusy] = useState(null) // id being acted on
+  const load = useCallback(async () => {
+    try {
+      const r = await authedFetch('/api/admin/reports')
+      const j = await r.json()
+      setReports(j.reports || [])
+    } catch (e) { console.error(e) }
+  }, [])
+  useEffect(() => { if (open) load() }, [open, load])
+
+  const resolve = async (rep) => {
+    setBusy(rep.id)
+    try {
+      await authedFetch(`/api/admin/reports/${rep.id}/resolve`, { method: 'POST', body: JSON.stringify({ note: 'Reviewed - no action' }) })
+      setReports(prev => prev.map(r => r.id === rep.id ? { ...r, status: 'resolved' } : r))
+    } finally { setBusy(null) }
+  }
+  const removePost = async (rep) => {
+    if (!confirm(`Remove post "${rep.post?.title || rep.postId}" permanently?`)) return
+    setBusy(rep.id)
+    try {
+      await authedFetch(`/api/admin/posts/${rep.postId}`, { method: 'DELETE' })
+      setReports(prev => prev.map(r => r.postId === rep.postId ? { ...r, status: 'resolved', post: null } : r))
+    } finally { setBusy(null) }
+  }
+
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}>
+      <div className="journal-card w-full max-w-2xl rounded-2xl border my-8 fade-up">
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'inherit' }}>
+          <div className="flex items-center gap-2"><Shield className="w-4 h-4" /><span className="text-sm font-semibold">Moderation queue</span></div>
+          <button onClick={onClose} className="journal-btn-ghost p-2 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-6">
+          {reports === null ? (
+            <div className="text-center py-12 journal-muted"><Loader2 className="w-4 h-4 animate-spin inline" /></div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-12 journal-muted text-sm">No reports. All quiet on the front. 🕊️</div>
+          ) : (
+            <div className="space-y-4">
+              {reports.map(rep => (
+                <div key={rep.id} className="border rounded-xl p-4" style={{ borderColor: 'rgba(128,128,128,0.2)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-xs journal-muted">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>Reported {timeAgo(rep.createdAt)}</span>
+                      <span>·</span>
+                      <span className={rep.status === 'resolved' ? 'text-green-600' : 'text-orange-500'}>{rep.status}</span>
+                    </div>
+                    {rep.reporter && (
+                      <div className="flex items-center gap-1.5 text-xs journal-muted">
+                        <span>by</span><Avatar url={rep.reporter.photoURL} name={rep.reporter.displayName} size={20} />
+                        <span>{rep.reporter.displayName}</span>
+                      </div>
+                    )}
+                  </div>
+                  {rep.post ? (
+                    <div className="mb-3">
+                      <div className="font-medium mb-1">{rep.post.title}</div>
+                      <div className="text-xs journal-muted mb-1">by {rep.author?.displayName || '?'} · {formatDate(rep.post.createdAt)}</div>
+                      {rep.post.content && <div className="text-sm line-clamp-3 journal-muted">{rep.post.content}</div>}
+                    </div>
+                  ) : (
+                    <div className="text-xs italic journal-muted mb-3">(Post has been removed)</div>
+                  )}
+                  {rep.reason && (
+                    <div className="text-xs journal-muted italic mb-3">Reason: {`"${rep.reason}"`}</div>
+                  )}
+                  {rep.status !== 'resolved' && rep.post && (
+                    <div className="flex gap-2">
+                      <button onClick={() => resolve(rep)} disabled={busy === rep.id} className="journal-chip inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50">
+                        <Check className="w-3 h-3" /> Dismiss (allow)
+                      </button>
+                      <button onClick={() => removePost(rep)} disabled={busy === rep.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                        <Trash2 className="w-3 h-3" /> Remove post
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---------- Main App ----------
 function App() {
   const [authUser, setAuthUser] = useState(undefined)
@@ -703,6 +815,11 @@ function App() {
   const [driveConnected, setDriveConnected] = useState(false)
   const [driveSyncing, setDriveSyncing] = useState(false)
   const [driveMsg, setDriveMsg] = useState('')
+  const [notifs, setNotifs] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [isAdminUser, setIsAdminUser] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   useEffect(() => {
     const t = localStorage.getItem('tani-theme'); if (t) setTheme(t)
@@ -742,6 +859,36 @@ function App() {
     const iv = setInterval(() => setDriveConnected(isDriveConnected()), 10000)
     return () => clearInterval(iv)
   }, [authUser])
+
+  // Poll notifications + admin status
+  useEffect(() => {
+    if (!authUser) return
+    const loadNotifs = async () => {
+      try {
+        const r = await authedFetch('/api/notifications')
+        const j = await r.json()
+        setNotifs(j.notifications || [])
+        setUnreadCount(j.unread || 0)
+      } catch (e) { /* ignore */ }
+    }
+    const loadAdmin = async () => {
+      try {
+        const r = await authedFetch('/api/admin/status')
+        const j = await r.json()
+        setIsAdminUser(!!j.isAdmin)
+      } catch (e) { /* ignore */ }
+    }
+    loadNotifs(); loadAdmin()
+    const iv = setInterval(loadNotifs, 20000)
+    return () => clearInterval(iv)
+  }, [authUser])
+
+  const markNotifsRead = async () => {
+    if (unreadCount === 0) return
+    setUnreadCount(0)
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })))
+    try { await authedFetch('/api/notifications/read', { method: 'POST' }) } catch { /* ignore */ }
+  }
 
   const doConnectDrive = async () => {
     setDriveMsg('')
@@ -897,6 +1044,61 @@ function App() {
               </span>
             )}
             <button onClick={() => setStyleOpen(true)} className="journal-btn-ghost inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs"><Palette className="w-3.5 h-3.5" /><span className="hidden sm:inline">Style</span></button>
+            <div className="relative">
+              <button onClick={() => { setNotifOpen(v => !v); if (!notifOpen) markNotifsRead() }} className="journal-btn-ghost relative inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs">
+                <Bell className="w-3.5 h-3.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-1" style={{ background: '#ef4444', color: '#fff' }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto rounded-xl border shadow-lg z-20" style={{ background: '#fff', borderColor: 'rgba(128,128,128,0.2)', color: '#1a1a1a' }}>
+                    <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'rgba(128,128,128,0.15)' }}>
+                      <span className="text-sm font-semibold">Notifications</span>
+                    </div>
+                    {notifs.length === 0 ? (
+                      <div className="p-8 text-center text-xs text-gray-500">Nothing yet.</div>
+                    ) : (
+                      <div>
+                        {notifs.map(n => (
+                          <button
+                            key={n.id}
+                            onClick={() => { setNotifOpen(false); if (n.actorUid) setViewingAuthor(n.actorUid) }}
+                            className="w-full text-left px-4 py-3 hover:bg-black/5 flex items-start gap-3 border-b"
+                            style={{ borderColor: 'rgba(128,128,128,0.08)' }}
+                          >
+                            <Avatar url={n.actor?.photoURL} name={n.actor?.displayName} size={32} />
+                            <div className="flex-1 min-w-0 text-sm">
+                              <div>
+                                <b>{n.actor?.displayName || 'Someone'}</b>{' '}
+                                {n.type === 'like' && 'liked your entry'}
+                                {n.type === 'comment' && 'commented on your entry'}
+                                {n.type === 'follow' && 'started following you'}
+                                {n.meta?.postTitle && <> · <span className="text-gray-500">{`"${n.meta.postTitle}"`}</span></>}
+                              </div>
+                              {n.type === 'comment' && n.meta?.snippet && (
+                                <div className="text-xs text-gray-500 mt-0.5 line-clamp-2">{`"${n.meta.snippet}"`}</div>
+                              )}
+                              <div className="text-[11px] text-gray-500 mt-0.5">{timeAgo(n.createdAt)}</div>
+                            </div>
+                            {!n.read && <span className="w-2 h-2 rounded-full mt-2 flex-shrink-0" style={{ background: '#3b82f6' }} />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            {isAdminUser && (
+              <button onClick={() => setAdminOpen(true)} className="journal-btn-ghost inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs" title="Moderation queue">
+                <Shield className="w-3.5 h-3.5" /><span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
             <button onClick={() => { setEditing(null); setEditorOpen(true) }} className="journal-btn-primary inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium"><Plus className="w-3.5 h-3.5" /> New entry</button>
             <div className="relative">
               <button onClick={() => setMenuOpen(v => !v)} className="ml-1">
@@ -1005,6 +1207,7 @@ function App() {
       <PostEditor open={editorOpen} onClose={() => { setEditorOpen(false); setEditing(null) }} onSave={savePost} initial={editing} />
       <StylePanel open={styleOpen} onClose={() => setStyleOpen(false)} theme={theme} setTheme={setTheme} font={font} setFont={setFont} />
       <ProfileEditor open={profileOpen} onClose={() => setProfileOpen(false)} profile={profile} onSave={saveProfile} />
+      <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
 
       <button onClick={() => { setEditing(null); setEditorOpen(true) }} className="sm:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg journal-btn-primary flex items-center justify-center z-20">
         <Plus className="w-6 h-6" />

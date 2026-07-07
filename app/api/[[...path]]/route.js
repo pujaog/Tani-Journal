@@ -8,7 +8,25 @@ import {
 
 const MONGO_URL = process.env.MONGO_URL
 const DB_NAME = process.env.DB_NAME || 'tani_journal'
-const PRESENCE_WINDOW_MS = 45 * 1000 // treat as online if heartbeat within 45s
+const PRESENCE_WINDOW_MS = 45 * 1000
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+
+function isAdmin(authUser) {
+  if (!authUser?.email) return false
+  return ADMIN_EMAILS.includes(authUser.email.toLowerCase())
+}
+
+async function createNotification(db, { userUid, actorUid, type, postId, commentId, meta }) {
+  if (!userUid || userUid === actorUid) return // don't self-notify
+  await db.collection('notifications').insertOne({
+    id: uuidv4(),
+    userUid, actorUid, type,
+    postId: postId || null, commentId: commentId || null,
+    meta: meta || null,
+    read: false,
+    createdAt: new Date().toISOString(),
+  })
+}
 
 let cachedClient = null
 async function getDb() {
@@ -266,6 +284,10 @@ async function handle(request, ctx) {
           await likes.insertOne({ id: uuidv4(), postId: id, uid: authUser.uid, createdAt: new Date().toISOString() })
           await posts.updateOne({ id }, { $inc: { likeCount: 1 } })
           const updated = await posts.findOne({ id })
+          createNotification(db, {
+            userUid: p.authorUid, actorUid: authUser.uid, type: 'like', postId: id,
+            meta: { postTitle: p.title },
+          }).catch(() => {})
           return json({ liked: true, likeCount: updated.likeCount || 0 })
         }
       }
@@ -321,6 +343,10 @@ async function handle(request, ctx) {
           }
           await comments.insertOne(doc)
           await posts.updateOne({ id }, { $inc: { commentCount: 1 } })
+          createNotification(db, {
+            userUid: p.authorUid, actorUid: authUser.uid, type: 'comment',
+            postId: id, commentId: doc.id, meta: { postTitle: p.title, snippet: content.slice(0, 100) },
+          }).catch(() => {})
           const author = await profiles.findOne({ uid: authUser.uid })
           return json({ comment: { ...clean(doc), author: author ? { uid: author.uid, displayName: author.displayName, photoURL: author.photoURL } : null } }, 201)
         }
@@ -368,6 +394,7 @@ async function handle(request, ctx) {
         id: uuidv4(), followerUid: authUser.uid, followingUid: targetUid,
         createdAt: new Date().toISOString(),
       })
+      createNotification(db, { userUid: targetUid, actorUid: authUser.uid, type: 'follow' }).catch(() => {})
       return json({ following: true })
     }
     if (path === '/follows' && method === 'GET') {
@@ -400,6 +427,73 @@ async function handle(request, ctx) {
         if (now - t < PRESENCE_WINDOW_MS) map[r.uid] = true
       }
       return json({ presence: map })
+    }
+
+    // -------- Notifications --------
+    if (path === '/notifications' && method === 'GET') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      const list = await db.collection('notifications')
+        .find({ userUid: authUser.uid })
+        .sort({ createdAt: -1 }).limit(50).toArray()
+      const actorUids = [...new Set(list.map(n => n.actorUid).filter(Boolean))]
+      const actors = actorUids.length ? await profiles.find({ uid: { $in: actorUids } }).toArray() : []
+      const actorMap = Object.fromEntries(actors.map(a => [a.uid, { uid: a.uid, displayName: a.displayName, photoURL: a.photoURL }]))
+      const unread = await db.collection('notifications').countDocuments({ userUid: authUser.uid, read: false })
+      return json({
+        notifications: list.map(n => ({ ...clean(n), actor: actorMap[n.actorUid] || null })),
+        unread,
+      })
+    }
+    if (path === '/notifications/read' && method === 'POST') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      await db.collection('notifications').updateMany({ userUid: authUser.uid, read: false }, { $set: { read: true } })
+      return json({ ok: true })
+    }
+
+    // -------- Admin --------
+    if (path === '/admin/status' && method === 'GET') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      return json({ isAdmin: isAdmin(authUser) })
+    }
+    if (path === '/admin/reports' && method === 'GET') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      if (!isAdmin(authUser)) return json({ error: 'Forbidden' }, 403)
+      const list = await reports.find({}).sort({ createdAt: -1 }).limit(200).toArray()
+      const postIds = [...new Set(list.map(r => r.postId))]
+      const uids = [...new Set([...list.map(r => r.reporterUid), ...list.map(r => r.authorUid)])]
+      const [pDocs, uDocs] = await Promise.all([
+        postIds.length ? posts.find({ id: { $in: postIds } }).toArray() : [],
+        uids.length ? profiles.find({ uid: { $in: uids } }).toArray() : [],
+      ])
+      const pMap = Object.fromEntries(pDocs.map(p => [p.id, clean(p)]))
+      const uMap = Object.fromEntries(uDocs.map(u => [u.uid, { uid: u.uid, displayName: u.displayName, photoURL: u.photoURL }]))
+      return json({
+        reports: list.map(r => ({
+          ...clean(r),
+          post: pMap[r.postId] || null,
+          reporter: uMap[r.reporterUid] || null,
+          author: uMap[r.authorUid] || null,
+        })),
+      })
+    }
+    if (segs[0] === 'admin' && segs[1] === 'reports' && segs[2] && segs[3] === 'resolve' && method === 'POST') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      if (!isAdmin(authUser)) return json({ error: 'Forbidden' }, 403)
+      const body = await readBody(request)
+      await reports.updateOne({ id: segs[2] }, { $set: { status: 'resolved', resolvedAt: new Date().toISOString(), resolvedBy: authUser.uid, note: body.note || '' } })
+      return json({ ok: true })
+    }
+    if (segs[0] === 'admin' && segs[1] === 'posts' && segs[2] && method === 'DELETE') {
+      if (!authUser) return json({ error: 'Unauthorized' }, 401)
+      if (!isAdmin(authUser)) return json({ error: 'Forbidden' }, 403)
+      const id = segs[2]
+      await Promise.all([
+        posts.deleteOne({ id }),
+        likes.deleteMany({ postId: id }),
+        comments.deleteMany({ postId: id }),
+        reports.updateMany({ postId: id }, { $set: { status: 'resolved', resolvedAt: new Date().toISOString(), resolvedBy: authUser.uid, note: 'Post removed by admin' } }),
+      ])
+      return json({ ok: true })
     }
 
     // -------- Upload echo --------
