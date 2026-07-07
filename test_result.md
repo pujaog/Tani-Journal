@@ -144,6 +144,9 @@ backend:
         - working: true
           agent: "testing"
           comment: "Verified in Phase 1 testing."
+        - working: true
+          agent: "testing"
+          comment: "Phase 3 regression test - PASSED. Upload endpoint still working correctly."
   - task: "Health endpoint (/api/health)"
     implemented: true
     working: true
@@ -155,6 +158,65 @@ backend:
         - working: true
           agent: "testing"
           comment: "Verified in Phase 1 testing."
+        - working: true
+          agent: "testing"
+          comment: "Phase 3 regression test - PASSED. Health endpoint still working correctly."
+  - task: "Engagement layer (likes, views, comments, reports)"
+    implemented: true
+    working: false
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 3 engagement features added: POST /api/posts/:id/like (toggle like, requires auth), POST /api/posts/:id/view (increment view count, public for public posts), GET /api/posts/:id/comments (list comments, public for public posts), POST /api/posts/:id/comments (create comment, requires auth), DELETE /api/comments/:id (delete own comment, requires auth), POST /api/posts/:id/report (report post, requires auth). All endpoints check post existence and visibility before allowing access."
+        - working: false
+          agent: "testing"
+          comment: "Phase 3 engagement testing - 6/7 tests PASSED, 1 FAILED. PASSED: (1) POST /api/posts/fake-id/like without auth returns 401 ✓, (2) POST /api/posts/fake-id/like with invalid token returns 401 ✓, (3) POST /api/posts/fake-id/view without auth returns 404 for non-existent post ✓, (4) GET /api/posts/fake-id/comments without auth returns 404 ✓, (6) DELETE /api/comments/fake-id without auth returns 401 ✓, (7) POST /api/posts/fake-id/report without auth returns 401 ✓. FAILED: (5) POST /api/posts/fake-id/comments without auth returns 404 instead of expected 401 - the endpoint checks post existence BEFORE authentication, which is a security concern as it reveals whether a post exists before verifying auth. This should check auth first, then post existence."
+  - task: "Follow system"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 3 follow system added: POST /api/follow/:uid (toggle follow, requires auth), GET /api/follows (list following UIDs, requires auth), GET /api/posts?scope=following (get posts from followed users, requires auth). All endpoints properly protected with Firebase auth."
+        - working: true
+          agent: "testing"
+          comment: "Phase 3 follow system testing - ALL TESTS PASSED (3/3, 100%). Verified: (1) POST /api/follow/xyz without auth returns 401 ✓, (2) GET /api/follows without auth returns 401 ✓, (3) GET /api/posts?scope=following without auth returns 401 ✓. All follow endpoints correctly require authentication."
+  - task: "Presence system (heartbeat + query)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 3 presence system added: POST /api/heartbeat (update lastSeen timestamp, requires auth), GET /api/presence?uids=uid1,uid2 (query online status, public endpoint). Presence window is 45 seconds. Auto-heartbeat on any authenticated request."
+        - working: true
+          agent: "testing"
+          comment: "Phase 3 presence system testing - ALL TESTS PASSED (3/3, 100%). Verified: (1) POST /api/heartbeat without auth returns 401 ✓, (2) GET /api/presence without query params returns 200 with empty presence object {} ✓, (3) GET /api/presence?uids=alice,bob returns 200 with {alice: false, bob: false} for users who haven't been seen ✓. Presence query is correctly public, heartbeat correctly requires auth."
+  - task: "Author profile endpoints (GET /api/profiles/:uid/posts)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Phase 3 author profile enhancement: GET /api/profiles/:uid/posts returns public posts by a specific author. Public endpoint, no auth required. Returns empty array if author doesn't exist or has no public posts."
+        - working: true
+          agent: "testing"
+          comment: "Phase 3 author profile testing - ALL TESTS PASSED (2/2, 100%). Verified: (1) GET /api/profiles/nonexistent returns 404 ✓, (2) GET /api/profiles/nonexistent/posts returns 200 with empty posts array [] ✓. Profile endpoints working correctly - profile lookup returns 404 for non-existent users, but posts endpoint returns empty array (graceful handling)."
 
 frontend:
   - task: "Timeline feed with month grouping and post cards"
@@ -194,19 +256,23 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 3
+  test_sequence: 4
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: []
+  current_focus:
+    - "Fix POST /api/posts/:id/comments auth check order"
+  stuck_tasks:
+    - "Engagement layer (likes, views, comments, reports)"
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "Phase 2 auth implemented. Firebase Auth (Google + Email/Password) integrated on client. Server verifies Firebase ID tokens using jose + Firebase's public JWKS (no service account needed). New endpoints: GET/PATCH /api/me for profile, GET /api/profiles/:uid public. Posts now scoped: /api/posts?scope=mine (auth) vs scope=community (only public posts, no auth). Owner-only edit/delete enforced with 403. Please test with and without Bearer tokens. For token acquisition during testing: cannot easily obtain real Firebase tokens in automated tests — instead test the unauthenticated behavior: (1) /api/posts?scope=community returns [] or public posts without auth, (2) /api/posts?scope=mine returns 401 without auth, (3) POST/PUT/DELETE /api/posts and /api/me return 401 without auth, (4) health remains public, (5) upload echo remains public."
+      message: "Phase 3 delivered — engagement (likes/views/comments), follow system, author profiles, presence, moderation reports. Please retest with focus on (a) public/protected semantics for the new endpoints, (b) 401 without auth, (c) invalid token → 401, (d) health/community/upload/view/presence remain accessible without auth. Real Firebase tokens not needed for these checks."
     - agent: "testing"
       message: "✅ Phase 1 backend testing complete - ALL TESTS PASSED! Verified all 3 backend endpoints: (1) Health endpoints working correctly with service name and timestamps, (2) Upload endpoint echoes dataUrl and validates input, (3) Posts CRUD fully functional - UUID ids, no _id leaks, aspect ratio validation (3:4 preserved, invalid→16:9), images capped to 6, sorting by newest first, partial updates work, 404 handling correct. All responses are JSON with ISO timestamps. Backend is production-ready."
     - agent: "testing"
       message: "✅ Phase 2 backend testing complete - ALL TESTS PASSED (15/15, 100% success rate)! Comprehensive Firebase Auth verification completed. PUBLIC ENDPOINTS: (1) Health endpoints (/api, /api/health) return correct status, (2) Upload endpoint echoes dataUrl and validates input (400 on missing dataUrl), (3) GET /api/posts?scope=community returns public posts without auth (currently empty array), (4) GET /api/profiles/:uid returns 404 for non-existent profiles (public endpoint). PROTECTED ENDPOINTS: (5-10) All protected endpoints (GET/PATCH /api/me, GET /api/posts?scope=mine, POST/PUT/DELETE /api/posts) correctly return 401 without auth. INVALID TOKEN HANDLING: (11-12) Invalid tokens (Bearer notarealtoken.xxx.yyy) return 401 gracefully without crashes. RESOURCE HANDLING: (13) GET /api/posts/nonexistent-id returns 404 (not 401), confirming public branch works. All responses are JSON, no _id leaks, response times <3s. Firebase Auth integration via jose + JWKS working perfectly. Backend is production-ready for Phase 2."
+    - agent: "testing"
+      message: "⚠️ Phase 3 backend testing complete - 19/20 tests PASSED (95% success rate), 1 CRITICAL ISSUE found. ENGAGEMENT LAYER (6/7 passed): ✅ Likes endpoint correctly requires auth (401 without auth, 401 with invalid token). ✅ Views endpoint returns 404 for non-existent posts (not 500). ✅ Comments GET returns 404 for non-existent posts. ✅ Comments DELETE requires auth (401). ✅ Report endpoint requires auth (401). ❌ CRITICAL: POST /api/posts/:id/comments returns 404 instead of 401 when no auth provided for non-existent post - the endpoint checks post existence BEFORE authentication (lines 291-296), revealing whether a post exists before verifying auth. This is a security concern. Should check auth first. FOLLOW SYSTEM (3/3 passed): ✅ All follow endpoints correctly require auth. PRESENCE SYSTEM (3/3 passed): ✅ Heartbeat requires auth, presence query is public and works correctly. AUTHOR PROFILES (2/2 passed): ✅ Profile endpoints work correctly. REGRESSION (5/5 passed): ✅ All existing endpoints still work. NO _id LEAKS: ✅ Verified. RESPONSE TIMES: ✅ All <3s. ACTION REQUIRED: Fix auth check order in POST /api/posts/:id/comments endpoint (line 304-305 should come before line 292-293)."

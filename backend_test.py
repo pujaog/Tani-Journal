@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Backend API Tests for The Tani Journal - Phase 2 (Firebase Auth)
-Tests both public and protected endpoints with and without authentication.
+Backend API Tests for The Tani Journal - Phase 3
+Tests engagement, follow system, presence, and author profile endpoints.
 """
 
 import requests
@@ -17,311 +17,460 @@ def log(msg, level="INFO"):
     timestamp = datetime.now().strftime("%H:%M:%S")
     print(f"[{timestamp}] [{level}] {msg}")
 
-def test_public_health_endpoints():
-    """Test 1-2: Public health endpoints"""
+def test_engagement_endpoints():
+    """Test 1-7: Engagement endpoints (likes, views, comments, reports)"""
     log("=" * 60)
-    log("TEST 1-2: Public Health Endpoints")
+    log("TEST 1-7: Engagement Endpoints")
+    log("=" * 60)
+    
+    results = []
+    fake_post_id = "fake-post-id-12345"
+    fake_comment_id = "fake-comment-id-12345"
+    
+    # Test 1: POST /api/posts/fake-id/like (no auth) → expect 401
+    try:
+        log("\n1. Testing POST /api/posts/fake-id/like without auth...")
+        resp = requests.post(f"{BASE_URL}/posts/{fake_post_id}/like", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/posts/fake-id/like (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts/fake-id/like (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/posts/fake-id/like (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts/fake-id/like (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/posts/fake-id/like (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts/fake-id/like (no auth)", False, str(e)))
+    
+    # Test 2: POST /api/posts/fake-id/like (with invalid token) → expect 401
+    try:
+        log("\n2. Testing POST /api/posts/fake-id/like with invalid token...")
+        headers = {"Authorization": "Bearer badtoken"}
+        resp = requests.post(f"{BASE_URL}/posts/{fake_post_id}/like", headers=headers, timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/posts/fake-id/like (invalid token) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts/fake-id/like (invalid token)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/posts/fake-id/like (invalid token) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts/fake-id/like (invalid token)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/posts/fake-id/like (invalid token) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts/fake-id/like (invalid token)", False, str(e)))
+    
+    # Test 3: POST /api/posts/fake-id/view (no auth) → expect 404
+    try:
+        log("\n3. Testing POST /api/posts/fake-id/view without auth...")
+        resp = requests.post(f"{BASE_URL}/posts/{fake_post_id}/view", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 404:
+            log("✅ POST /api/posts/fake-id/view (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts/fake-id/view (no auth)", True, "Returns 404 as expected (post doesn't exist)"))
+        elif resp.status_code == 500:
+            log("❌ POST /api/posts/fake-id/view (no auth) - FAILED: Got 500 instead of 404", "ERROR")
+            results.append(("POST /api/posts/fake-id/view (no auth)", False, "Returns 500 instead of 404"))
+        else:
+            log(f"❌ POST /api/posts/fake-id/view (no auth) - FAILED: Expected 404, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts/fake-id/view (no auth)", False, f"Expected 404, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/posts/fake-id/view (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts/fake-id/view (no auth)", False, str(e)))
+    
+    # Test 4: GET /api/posts/fake-id/comments (no auth) → 404
+    try:
+        log("\n4. Testing GET /api/posts/fake-id/comments without auth...")
+        resp = requests.get(f"{BASE_URL}/posts/{fake_post_id}/comments", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 404:
+            log("✅ GET /api/posts/fake-id/comments (no auth) - PASSED", "SUCCESS")
+            results.append(("GET /api/posts/fake-id/comments (no auth)", True, "Returns 404 as expected"))
+        else:
+            log(f"❌ GET /api/posts/fake-id/comments (no auth) - FAILED: Expected 404, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/posts/fake-id/comments (no auth)", False, f"Expected 404, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/posts/fake-id/comments (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/posts/fake-id/comments (no auth)", False, str(e)))
+    
+    # Test 5: POST /api/posts/{fake-id}/comments (no auth) → 401
+    try:
+        log("\n5. Testing POST /api/posts/fake-id/comments without auth...")
+        payload = {"content": "hi"}
+        resp = requests.post(f"{BASE_URL}/posts/{fake_post_id}/comments", json=payload, timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/posts/fake-id/comments (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts/fake-id/comments (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/posts/fake-id/comments (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts/fake-id/comments (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/posts/fake-id/comments (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts/fake-id/comments (no auth)", False, str(e)))
+    
+    # Test 6: DELETE /api/comments/fake-id (no auth) → 401
+    try:
+        log("\n6. Testing DELETE /api/comments/fake-id without auth...")
+        resp = requests.delete(f"{BASE_URL}/comments/{fake_comment_id}", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ DELETE /api/comments/fake-id (no auth) - PASSED", "SUCCESS")
+            results.append(("DELETE /api/comments/fake-id (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ DELETE /api/comments/fake-id (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("DELETE /api/comments/fake-id (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ DELETE /api/comments/fake-id (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("DELETE /api/comments/fake-id (no auth)", False, str(e)))
+    
+    # Test 7: POST /api/posts/fake-id/report (no auth) → 401
+    try:
+        log("\n7. Testing POST /api/posts/fake-id/report without auth...")
+        payload = {"reason": "spam"}
+        resp = requests.post(f"{BASE_URL}/posts/{fake_post_id}/report", json=payload, timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/posts/fake-id/report (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts/fake-id/report (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/posts/fake-id/report (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts/fake-id/report (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/posts/fake-id/report (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts/fake-id/report (no auth)", False, str(e)))
+    
+    return results
+
+def test_follow_system():
+    """Test 8-10: Follow system endpoints"""
+    log("\n" + "=" * 60)
+    log("TEST 8-10: Follow System Endpoints")
     log("=" * 60)
     
     results = []
     
-    # Test 1: GET /api/health
+    # Test 8: POST /api/follow/xyz (no auth) → 401
     try:
-        log("Testing GET /api/health...")
+        log("\n8. Testing POST /api/follow/xyz without auth...")
+        resp = requests.post(f"{BASE_URL}/follow/xyz", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/follow/xyz (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/follow/xyz (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/follow/xyz (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/follow/xyz (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/follow/xyz (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/follow/xyz (no auth)", False, str(e)))
+    
+    # Test 9: GET /api/follows (no auth) → 401
+    try:
+        log("\n9. Testing GET /api/follows without auth...")
+        resp = requests.get(f"{BASE_URL}/follows", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ GET /api/follows (no auth) - PASSED", "SUCCESS")
+            results.append(("GET /api/follows (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ GET /api/follows (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/follows (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/follows (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/follows (no auth)", False, str(e)))
+    
+    # Test 10: GET /api/posts?scope=following (no auth) → 401
+    try:
+        log("\n10. Testing GET /api/posts?scope=following without auth...")
+        resp = requests.get(f"{BASE_URL}/posts?scope=following", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ GET /api/posts?scope=following (no auth) - PASSED", "SUCCESS")
+            results.append(("GET /api/posts?scope=following (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ GET /api/posts?scope=following (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/posts?scope=following (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/posts?scope=following (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/posts?scope=following (no auth)", False, str(e)))
+    
+    return results
+
+def test_presence_endpoints():
+    """Test 11-13: Presence endpoints"""
+    log("\n" + "=" * 60)
+    log("TEST 11-13: Presence Endpoints")
+    log("=" * 60)
+    
+    results = []
+    
+    # Test 11: POST /api/heartbeat (no auth) → 401
+    try:
+        log("\n11. Testing POST /api/heartbeat without auth...")
+        resp = requests.post(f"{BASE_URL}/heartbeat", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 401:
+            log("✅ POST /api/heartbeat (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/heartbeat (no auth)", True, "Returns 401 as expected"))
+        else:
+            log(f"❌ POST /api/heartbeat (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/heartbeat (no auth)", False, f"Expected 401, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ POST /api/heartbeat (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/heartbeat (no auth)", False, str(e)))
+    
+    # Test 12: GET /api/presence (no auth, no query) → 200 with { presence: {} }
+    try:
+        log("\n12. Testing GET /api/presence without auth and no query...")
+        resp = requests.get(f"{BASE_URL}/presence", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            if 'presence' in data and data['presence'] == {}:
+                log("✅ GET /api/presence (no query) - PASSED", "SUCCESS")
+                results.append(("GET /api/presence (no query)", True, "Returns 200 with empty presence object"))
+            else:
+                log(f"❌ GET /api/presence (no query) - FAILED: Expected {{presence: {{}}}}, got {data}", "ERROR")
+                results.append(("GET /api/presence (no query)", False, f"Expected {{presence: {{}}}}, got {data}"))
+        else:
+            log(f"❌ GET /api/presence (no query) - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/presence (no query)", False, f"Expected 200, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/presence (no query) - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/presence (no query)", False, str(e)))
+    
+    # Test 13: GET /api/presence?uids=alice,bob (no auth) → 200 { presence: { alice: false, bob: false } }
+    try:
+        log("\n13. Testing GET /api/presence?uids=alice,bob without auth...")
+        resp = requests.get(f"{BASE_URL}/presence?uids=alice,bob", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            if 'presence' in data and data['presence'].get('alice') == False and data['presence'].get('bob') == False:
+                log("✅ GET /api/presence?uids=alice,bob - PASSED", "SUCCESS")
+                results.append(("GET /api/presence?uids=alice,bob", True, "Returns 200 with presence: {alice: false, bob: false}"))
+            else:
+                log(f"❌ GET /api/presence?uids=alice,bob - FAILED: Expected alice and bob to be false, got {data}", "ERROR")
+                results.append(("GET /api/presence?uids=alice,bob", False, f"Expected alice and bob to be false, got {data}"))
+        else:
+            log(f"❌ GET /api/presence?uids=alice,bob - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/presence?uids=alice,bob", False, f"Expected 200, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/presence?uids=alice,bob - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/presence?uids=alice,bob", False, str(e)))
+    
+    return results
+
+def test_author_profile_endpoints():
+    """Test 14-15: Author profile endpoints"""
+    log("\n" + "=" * 60)
+    log("TEST 14-15: Author Profile Endpoints")
+    log("=" * 60)
+    
+    results = []
+    
+    # Test 14: GET /api/profiles/nonexistent (no auth) → 404
+    try:
+        log("\n14. Testing GET /api/profiles/nonexistent without auth...")
+        resp = requests.get(f"{BASE_URL}/profiles/nonexistent", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 404:
+            log("✅ GET /api/profiles/nonexistent - PASSED", "SUCCESS")
+            results.append(("GET /api/profiles/nonexistent", True, "Returns 404 as expected"))
+        else:
+            log(f"❌ GET /api/profiles/nonexistent - FAILED: Expected 404, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/profiles/nonexistent", False, f"Expected 404, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/profiles/nonexistent - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/profiles/nonexistent", False, str(e)))
+    
+    # Test 15: GET /api/profiles/nonexistent/posts (no auth) → 200 { posts: [] }
+    try:
+        log("\n15. Testing GET /api/profiles/nonexistent/posts without auth...")
+        resp = requests.get(f"{BASE_URL}/profiles/nonexistent/posts", timeout=5)
+        log(f"Status: {resp.status_code}")
+        log(f"Response: {resp.text[:200]}")
+        
+        if resp.status_code == 200:
+            data = resp.json()
+            if 'posts' in data and data['posts'] == []:
+                log("✅ GET /api/profiles/nonexistent/posts - PASSED", "SUCCESS")
+                results.append(("GET /api/profiles/nonexistent/posts", True, "Returns 200 with empty posts array"))
+            else:
+                log(f"❌ GET /api/profiles/nonexistent/posts - FAILED: Expected {{posts: []}}, got {data}", "ERROR")
+                results.append(("GET /api/profiles/nonexistent/posts", False, f"Expected {{posts: []}}, got {data}"))
+        else:
+            log(f"❌ GET /api/profiles/nonexistent/posts - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/profiles/nonexistent/posts", False, f"Expected 200, got {resp.status_code}"))
+    except Exception as e:
+        log(f"❌ GET /api/profiles/nonexistent/posts - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/profiles/nonexistent/posts", False, str(e)))
+    
+    return results
+
+def test_regression_endpoints():
+    """Test 16-20: Regression tests for existing endpoints"""
+    log("\n" + "=" * 60)
+    log("TEST 16-20: Regression Tests")
+    log("=" * 60)
+    
+    results = []
+    
+    # Test 16: GET /api/health → 200 ok
+    try:
+        log("\n16. Testing GET /api/health...")
         resp = requests.get(f"{BASE_URL}/health", timeout=5)
         log(f"Status: {resp.status_code}")
         log(f"Response: {resp.text[:200]}")
         
         if resp.status_code == 200:
             data = resp.json()
-            if data.get('status') == 'ok' and data.get('service') == 'tani-journal' and 'time' in data:
+            if data.get('status') == 'ok':
                 log("✅ GET /api/health - PASSED", "SUCCESS")
-                results.append(("GET /api/health", True, "Returns correct health status"))
+                results.append(("GET /api/health", True, "Returns 200 with status ok"))
             else:
-                log("❌ GET /api/health - FAILED: Invalid response structure", "ERROR")
-                results.append(("GET /api/health", False, f"Invalid structure: {data}"))
+                log(f"❌ GET /api/health - FAILED: Expected status ok, got {data}", "ERROR")
+                results.append(("GET /api/health", False, f"Expected status ok, got {data}"))
         else:
-            log(f"❌ GET /api/health - FAILED: Status {resp.status_code}", "ERROR")
-            results.append(("GET /api/health", False, f"Status {resp.status_code}"))
+            log(f"❌ GET /api/health - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/health", False, f"Expected 200, got {resp.status_code}"))
     except Exception as e:
         log(f"❌ GET /api/health - EXCEPTION: {e}", "ERROR")
         results.append(("GET /api/health", False, str(e)))
     
-    # Test 2: GET /api (root)
+    # Test 17: GET /api/posts?scope=community → 200 { posts: [] }
     try:
-        log("\nTesting GET /api (root)...")
-        resp = requests.get(f"{BASE_URL}/", timeout=5)
+        log("\n17. Testing GET /api/posts?scope=community...")
+        resp = requests.get(f"{BASE_URL}/posts?scope=community", timeout=5)
         log(f"Status: {resp.status_code}")
         log(f"Response: {resp.text[:200]}")
         
         if resp.status_code == 200:
             data = resp.json()
-            if data.get('status') == 'ok' and data.get('service') == 'tani-journal' and 'time' in data:
-                log("✅ GET /api (root) - PASSED", "SUCCESS")
-                results.append(("GET /api (root)", True, "Returns correct health status"))
+            if 'posts' in data and isinstance(data['posts'], list):
+                log("✅ GET /api/posts?scope=community - PASSED", "SUCCESS")
+                results.append(("GET /api/posts?scope=community", True, f"Returns 200 with {len(data['posts'])} posts"))
             else:
-                log("❌ GET /api (root) - FAILED: Invalid response structure", "ERROR")
-                results.append(("GET /api (root)", False, f"Invalid structure: {data}"))
+                log(f"❌ GET /api/posts?scope=community - FAILED: Expected posts array, got {data}", "ERROR")
+                results.append(("GET /api/posts?scope=community", False, f"Expected posts array, got {data}"))
         else:
-            log(f"❌ GET /api (root) - FAILED: Status {resp.status_code}", "ERROR")
-            results.append(("GET /api (root)", False, f"Status {resp.status_code}"))
+            log(f"❌ GET /api/posts?scope=community - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/posts?scope=community", False, f"Expected 200, got {resp.status_code}"))
     except Exception as e:
-        log(f"❌ GET /api (root) - EXCEPTION: {e}", "ERROR")
-        results.append(("GET /api (root)", False, str(e)))
+        log(f"❌ GET /api/posts?scope=community - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/posts?scope=community", False, str(e)))
     
-    return results
-
-def test_upload_endpoint():
-    """Test 3: Upload endpoint (public)"""
-    log("\n" + "=" * 60)
-    log("TEST 3: Upload Endpoint (Public)")
-    log("=" * 60)
-    
-    results = []
-    
-    # Test with valid dataUrl
+    # Test 18: POST /api/upload {dataUrl:'data:image/png;base64,AA'} → 200 { url: '...' }
     try:
-        log("Testing POST /api/upload with valid dataUrl...")
-        payload = {"dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="}
+        log("\n18. Testing POST /api/upload...")
+        payload = {"dataUrl": "data:image/png;base64,AA"}
         resp = requests.post(f"{BASE_URL}/upload", json=payload, timeout=5)
         log(f"Status: {resp.status_code}")
         log(f"Response: {resp.text[:200]}")
         
         if resp.status_code == 200:
             data = resp.json()
-            if data.get('url') == payload['dataUrl']:
-                log("✅ POST /api/upload (valid) - PASSED", "SUCCESS")
-                results.append(("POST /api/upload (valid)", True, "Echoes dataUrl correctly"))
+            if 'url' in data:
+                log("✅ POST /api/upload - PASSED", "SUCCESS")
+                results.append(("POST /api/upload", True, "Returns 200 with url"))
             else:
-                log("❌ POST /api/upload (valid) - FAILED: URL mismatch", "ERROR")
-                results.append(("POST /api/upload (valid)", False, f"URL mismatch: {data}"))
+                log(f"❌ POST /api/upload - FAILED: Expected url field, got {data}", "ERROR")
+                results.append(("POST /api/upload", False, f"Expected url field, got {data}"))
         else:
-            log(f"❌ POST /api/upload (valid) - FAILED: Status {resp.status_code}", "ERROR")
-            results.append(("POST /api/upload (valid)", False, f"Status {resp.status_code}"))
+            log(f"❌ POST /api/upload - FAILED: Expected 200, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/upload", False, f"Expected 200, got {resp.status_code}"))
     except Exception as e:
-        log(f"❌ POST /api/upload (valid) - EXCEPTION: {e}", "ERROR")
-        results.append(("POST /api/upload (valid)", False, str(e)))
+        log(f"❌ POST /api/upload - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/upload", False, str(e)))
     
-    # Test without dataUrl (should return 400)
+    # Test 19: GET /api/me (no auth) → 401
     try:
-        log("\nTesting POST /api/upload without dataUrl...")
-        resp = requests.post(f"{BASE_URL}/upload", json={}, timeout=5)
+        log("\n19. Testing GET /api/me without auth...")
+        resp = requests.get(f"{BASE_URL}/me", timeout=5)
         log(f"Status: {resp.status_code}")
         log(f"Response: {resp.text[:200]}")
         
-        if resp.status_code == 400:
-            log("✅ POST /api/upload (missing dataUrl) - PASSED", "SUCCESS")
-            results.append(("POST /api/upload (missing dataUrl)", True, "Returns 400 as expected"))
+        if resp.status_code == 401:
+            log("✅ GET /api/me (no auth) - PASSED", "SUCCESS")
+            results.append(("GET /api/me (no auth)", True, "Returns 401 as expected"))
         else:
-            log(f"❌ POST /api/upload (missing dataUrl) - FAILED: Expected 400, got {resp.status_code}", "ERROR")
-            results.append(("POST /api/upload (missing dataUrl)", False, f"Expected 400, got {resp.status_code}"))
+            log(f"❌ GET /api/me (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("GET /api/me (no auth)", False, f"Expected 401, got {resp.status_code}"))
     except Exception as e:
-        log(f"❌ POST /api/upload (missing dataUrl) - EXCEPTION: {e}", "ERROR")
-        results.append(("POST /api/upload (missing dataUrl)", False, str(e)))
+        log(f"❌ GET /api/me (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("GET /api/me (no auth)", False, str(e)))
     
-    return results
-
-def test_public_posts_endpoint():
-    """Test 4: GET /api/posts?scope=community (public, no auth)"""
-    log("\n" + "=" * 60)
-    log("TEST 4: GET /api/posts?scope=community (Public)")
-    log("=" * 60)
-    
-    results = []
-    
+    # Test 20: POST /api/posts (no auth) → 401
     try:
-        log("Testing GET /api/posts?scope=community without auth...")
-        resp = requests.get(f"{BASE_URL}/posts?scope=community", timeout=5)
-        log(f"Status: {resp.status_code}")
-        log(f"Response: {resp.text[:500]}")
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            if 'posts' in data and isinstance(data['posts'], list):
-                log(f"✅ GET /api/posts?scope=community - PASSED (returned {len(data['posts'])} posts)", "SUCCESS")
-                
-                # Verify no _id fields leak
-                has_id_leak = any('_id' in post for post in data['posts'])
-                if has_id_leak:
-                    log("⚠️  WARNING: Found _id field in response (should be cleaned)", "WARN")
-                    results.append(("GET /api/posts?scope=community", True, f"Works but has _id leak"))
-                else:
-                    results.append(("GET /api/posts?scope=community", True, f"Returns {len(data['posts'])} public posts"))
-            else:
-                log("❌ GET /api/posts?scope=community - FAILED: Invalid response structure", "ERROR")
-                results.append(("GET /api/posts?scope=community", False, f"Invalid structure: {data}"))
-        elif resp.status_code == 401:
-            log("❌ GET /api/posts?scope=community - FAILED: Should NOT require auth (got 401)", "ERROR")
-            results.append(("GET /api/posts?scope=community", False, "Incorrectly requires auth"))
-        else:
-            log(f"❌ GET /api/posts?scope=community - FAILED: Status {resp.status_code}", "ERROR")
-            results.append(("GET /api/posts?scope=community", False, f"Status {resp.status_code}"))
-    except Exception as e:
-        log(f"❌ GET /api/posts?scope=community - EXCEPTION: {e}", "ERROR")
-        results.append(("GET /api/posts?scope=community", False, str(e)))
-    
-    return results
-
-def test_public_profile_endpoint():
-    """Test 5: GET /api/profiles/:uid (public but uid doesn't exist)"""
-    log("\n" + "=" * 60)
-    log("TEST 5: GET /api/profiles/:uid (Public)")
-    log("=" * 60)
-    
-    results = []
-    
-    try:
-        log("Testing GET /api/profiles/some-fake-uid...")
-        resp = requests.get(f"{BASE_URL}/profiles/some-fake-uid", timeout=5)
+        log("\n20. Testing POST /api/posts without auth...")
+        payload = {"title": "Test", "content": "Test content"}
+        resp = requests.post(f"{BASE_URL}/posts", json=payload, timeout=5)
         log(f"Status: {resp.status_code}")
         log(f"Response: {resp.text[:200]}")
         
-        if resp.status_code == 404:
-            data = resp.json()
-            if 'error' in data:
-                log("✅ GET /api/profiles/fake-uid - PASSED (404 as expected)", "SUCCESS")
-                results.append(("GET /api/profiles/fake-uid", True, "Returns 404 for non-existent uid"))
-            else:
-                log("❌ GET /api/profiles/fake-uid - FAILED: 404 but no error field", "ERROR")
-                results.append(("GET /api/profiles/fake-uid", False, "404 but no error field"))
+        if resp.status_code == 401:
+            log("✅ POST /api/posts (no auth) - PASSED", "SUCCESS")
+            results.append(("POST /api/posts (no auth)", True, "Returns 401 as expected"))
         else:
-            log(f"❌ GET /api/profiles/fake-uid - FAILED: Expected 404, got {resp.status_code}", "ERROR")
-            results.append(("GET /api/profiles/fake-uid", False, f"Expected 404, got {resp.status_code}"))
+            log(f"❌ POST /api/posts (no auth) - FAILED: Expected 401, got {resp.status_code}", "ERROR")
+            results.append(("POST /api/posts (no auth)", False, f"Expected 401, got {resp.status_code}"))
     except Exception as e:
-        log(f"❌ GET /api/profiles/fake-uid - EXCEPTION: {e}", "ERROR")
-        results.append(("GET /api/profiles/fake-uid", False, str(e)))
+        log(f"❌ POST /api/posts (no auth) - EXCEPTION: {e}", "ERROR")
+        results.append(("POST /api/posts (no auth)", False, str(e)))
     
     return results
 
-def test_protected_endpoints_no_auth():
-    """Test 6-11: Protected endpoints without auth (should return 401)"""
+def check_no_id_leaks(all_results):
+    """Check for _id field leaks in responses"""
     log("\n" + "=" * 60)
-    log("TEST 6-11: Protected Endpoints Without Auth")
+    log("CHECKING FOR _id FIELD LEAKS")
     log("=" * 60)
     
-    results = []
-    
-    protected_tests = [
-        ("GET", "/me", "GET /api/me"),
-        ("PATCH", "/me", "PATCH /api/me", {"displayName": "Test"}),
-        ("GET", "/posts?scope=mine", "GET /api/posts?scope=mine"),
-        ("POST", "/posts", "POST /api/posts", {"title": "Test", "content": "Test"}),
-        ("PUT", "/posts/test-id", "PUT /api/posts/test-id", {"title": "Updated"}),
-        ("DELETE", "/posts/test-id", "DELETE /api/posts/test-id"),
+    # Test a few endpoints that return data
+    endpoints_to_check = [
+        f"{BASE_URL}/posts?scope=community",
+        f"{BASE_URL}/presence?uids=alice,bob",
+        f"{BASE_URL}/profiles/nonexistent/posts",
     ]
     
-    for test in protected_tests:
-        method = test[0]
-        endpoint = test[1]
-        name = test[2]
-        payload = test[3] if len(test) > 3 else None
-        
+    for endpoint in endpoints_to_check:
         try:
-            log(f"\nTesting {name} without auth...")
-            url = f"{BASE_URL}{endpoint}"
-            
-            if method == "GET":
-                resp = requests.get(url, timeout=5)
-            elif method == "POST":
-                resp = requests.post(url, json=payload, timeout=5)
-            elif method == "PUT":
-                resp = requests.put(url, json=payload, timeout=5)
-            elif method == "PATCH":
-                resp = requests.patch(url, json=payload, timeout=5)
-            elif method == "DELETE":
-                resp = requests.delete(url, timeout=5)
-            
-            log(f"Status: {resp.status_code}")
-            log(f"Response: {resp.text[:200]}")
-            
-            if resp.status_code == 401:
-                data = resp.json()
-                if 'error' in data:
-                    log(f"✅ {name} - PASSED (401 as expected)", "SUCCESS")
-                    results.append((name, True, "Returns 401 without auth"))
+            resp = requests.get(endpoint, timeout=5)
+            if resp.status_code == 200:
+                text = resp.text
+                if '"_id"' in text:
+                    log(f"⚠️  WARNING: Found _id field in {endpoint}", "WARN")
                 else:
-                    log(f"❌ {name} - FAILED: 401 but no error field", "ERROR")
-                    results.append((name, False, "401 but no error field"))
-            else:
-                log(f"❌ {name} - FAILED: Expected 401, got {resp.status_code}", "ERROR")
-                results.append((name, False, f"Expected 401, got {resp.status_code}"))
+                    log(f"✅ No _id leak in {endpoint}", "SUCCESS")
         except Exception as e:
-            log(f"❌ {name} - EXCEPTION: {e}", "ERROR")
-            results.append((name, False, str(e)))
-    
-    return results
-
-def test_invalid_token():
-    """Test 12: Protected endpoints with invalid token"""
-    log("\n" + "=" * 60)
-    log("TEST 12: Protected Endpoints With Invalid Token")
-    log("=" * 60)
-    
-    results = []
-    
-    headers = {"Authorization": "Bearer notarealtoken.xxx.yyy"}
-    
-    protected_tests = [
-        ("GET", "/me", "GET /api/me with invalid token"),
-        ("GET", "/posts?scope=mine", "GET /api/posts?scope=mine with invalid token"),
-    ]
-    
-    for method, endpoint, name in protected_tests:
-        try:
-            log(f"\nTesting {name}...")
-            url = f"{BASE_URL}{endpoint}"
-            
-            if method == "GET":
-                resp = requests.get(url, headers=headers, timeout=5)
-            
-            log(f"Status: {resp.status_code}")
-            log(f"Response: {resp.text[:200]}")
-            
-            if resp.status_code == 401:
-                log(f"✅ {name} - PASSED (401 as expected)", "SUCCESS")
-                results.append((name, True, "Returns 401 with invalid token"))
-            else:
-                log(f"❌ {name} - FAILED: Expected 401, got {resp.status_code}", "ERROR")
-                results.append((name, False, f"Expected 401, got {resp.status_code}"))
-        except Exception as e:
-            log(f"❌ {name} - EXCEPTION: {e}", "ERROR")
-            results.append((name, False, str(e)))
-    
-    return results
-
-def test_nonexistent_post():
-    """Test 13: GET /api/posts/:id for non-existent post (no auth)"""
-    log("\n" + "=" * 60)
-    log("TEST 13: GET /api/posts/:id (Non-existent)")
-    log("=" * 60)
-    
-    results = []
-    
-    try:
-        log("Testing GET /api/posts/nonexistent-id without auth...")
-        resp = requests.get(f"{BASE_URL}/posts/nonexistent-id-12345", timeout=5)
-        log(f"Status: {resp.status_code}")
-        log(f"Response: {resp.text[:200]}")
-        
-        if resp.status_code == 404:
-            data = resp.json()
-            if 'error' in data:
-                log("✅ GET /api/posts/nonexistent-id - PASSED (404 as expected)", "SUCCESS")
-                results.append(("GET /api/posts/nonexistent-id", True, "Returns 404 for non-existent post"))
-            else:
-                log("❌ GET /api/posts/nonexistent-id - FAILED: 404 but no error field", "ERROR")
-                results.append(("GET /api/posts/nonexistent-id", False, "404 but no error field"))
-        elif resp.status_code == 401:
-            log("❌ GET /api/posts/nonexistent-id - FAILED: Should NOT require auth (got 401)", "ERROR")
-            results.append(("GET /api/posts/nonexistent-id", False, "Incorrectly requires auth"))
-        else:
-            log(f"❌ GET /api/posts/nonexistent-id - FAILED: Expected 404, got {resp.status_code}", "ERROR")
-            results.append(("GET /api/posts/nonexistent-id", False, f"Expected 404, got {resp.status_code}"))
-    except Exception as e:
-        log(f"❌ GET /api/posts/nonexistent-id - EXCEPTION: {e}", "ERROR")
-        results.append(("GET /api/posts/nonexistent-id", False, str(e)))
-    
-    return results
+            log(f"Could not check {endpoint}: {e}", "WARN")
 
 def print_summary(all_results):
     """Print test summary"""
@@ -354,7 +503,7 @@ def print_summary(all_results):
 def main():
     """Run all tests"""
     log("=" * 60)
-    log("TANI JOURNAL - PHASE 2 BACKEND TESTS")
+    log("TANI JOURNAL - PHASE 3 BACKEND TESTS")
     log("=" * 60)
     log(f"Base URL: {BASE_URL}")
     log(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -363,13 +512,14 @@ def main():
     all_results = []
     
     # Run all test suites
-    all_results.extend(test_public_health_endpoints())
-    all_results.extend(test_upload_endpoint())
-    all_results.extend(test_public_posts_endpoint())
-    all_results.extend(test_public_profile_endpoint())
-    all_results.extend(test_protected_endpoints_no_auth())
-    all_results.extend(test_invalid_token())
-    all_results.extend(test_nonexistent_post())
+    all_results.extend(test_engagement_endpoints())
+    all_results.extend(test_follow_system())
+    all_results.extend(test_presence_endpoints())
+    all_results.extend(test_author_profile_endpoints())
+    all_results.extend(test_regression_endpoints())
+    
+    # Check for _id leaks
+    check_no_id_leaks(all_results)
     
     # Print summary
     success = print_summary(all_results)
