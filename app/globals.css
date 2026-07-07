@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.75rem;
+  }
+}
+
+/* Theme variants for The Tani Journal style engine */
+html[data-theme='paper'] body {
+  background: #faf7f2;
+  color: #2a2622;
+}
+html[data-theme='paper'] .journal-card {
+  background: #ffffff;
+  border-color: #eee6d8;
+  box-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 10px 30px -12px rgba(60, 45, 20, 0.08);
+}
+
+html[data-theme='midnight'] body {
+  background: radial-gradient(ellipse at top, #1a1b2e 0%, #0d0e1a 60%, #06060d 100%);
+  color: #e8e6f0;
+  min-height: 100vh;
+}
+html[data-theme='midnight'] .journal-card {
+  background: rgba(30, 30, 50, 0.55);
+  border-color: rgba(120, 120, 180, 0.15);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 40px -12px rgba(0, 0, 0, 0.6);
+}
+html[data-theme='midnight'] .journal-muted { color: #a5a3c0; }
+html[data-theme='midnight'] .journal-input { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: #e8e6f0; }
+html[data-theme='midnight'] .journal-input::placeholder { color: #7a7896; }
+html[data-theme='midnight'] .journal-chip { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #d4d2e8; }
+html[data-theme='midnight'] .journal-chip-active { background: #e8e6f0; color: #0d0e1a; border-color: #e8e6f0; }
+html[data-theme='midnight'] .journal-btn-primary { background: #e8e6f0; color: #0d0e1a; }
+html[data-theme='midnight'] .journal-btn-ghost { color: #d4d2e8; }
+html[data-theme='midnight'] .journal-btn-ghost:hover { background: rgba(255,255,255,0.06); }
+html[data-theme='midnight'] .journal-divider { background: rgba(255,255,255,0.08); }
+
+html[data-theme='sepia'] body {
+  background: #f4ecd8;
+  color: #3d2f1f;
+}
+html[data-theme='sepia'] .journal-card {
+  background: #fbf5e6;
+  border-color: #d9c9a3;
+  box-shadow: 0 1px 2px rgba(120, 80, 20, 0.05), 0 10px 30px -12px rgba(120, 80, 20, 0.15);
+}
+html[data-theme='sepia'] .journal-muted { color: #8a7350; }
+html[data-theme='sepia'] .journal-chip-active { background: #3d2f1f; color: #f4ecd8; border-color: #3d2f1f; }
+html[data-theme='sepia'] .journal-btn-primary { background: #3d2f1f; color: #f4ecd8; }
+
+html[data-theme='forest'] body {
+  background: linear-gradient(180deg, #0f2620 0%, #0a1f1a 100%);
+  color: #dce8de;
+  min-height: 100vh;
+}
+html[data-theme='forest'] .journal-card {
+  background: rgba(20, 45, 38, 0.6);
+  border-color: rgba(140, 200, 160, 0.15);
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 40px -12px rgba(0, 0, 0, 0.5);
+}
+html[data-theme='forest'] .journal-muted { color: #8ab098; }
+html[data-theme='forest'] .journal-input { background: rgba(255,255,255,0.04); border-color: rgba(140,200,160,0.2); color: #dce8de; }
+html[data-theme='forest'] .journal-input::placeholder { color: #6a8a75; }
+html[data-theme='forest'] .journal-chip { background: rgba(255,255,255,0.04); border-color: rgba(140,200,160,0.15); color: #b5d0bc; }
+html[data-theme='forest'] .journal-chip-active { background: #dce8de; color: #0f2620; border-color: #dce8de; }
+html[data-theme='forest'] .journal-btn-primary { background: #dce8de; color: #0f2620; }
+html[data-theme='forest'] .journal-btn-ghost { color: #b5d0bc; }
+html[data-theme='forest'] .journal-btn-ghost:hover { background: rgba(255,255,255,0.05); }
+html[data-theme='forest'] .journal-divider { background: rgba(140,200,160,0.15); }
+
+/* Defaults for light themes */
+.journal-muted { color: #8a8580; }
+.journal-input { background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.08); color: inherit; }
+.journal-input::placeholder { color: #b0aaa2; }
+.journal-input:focus { outline: none; border-color: rgba(0,0,0,0.3); }
+.journal-chip { background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.08); color: inherit; }
+.journal-chip-active { background: #1a1a1a; color: #ffffff; border-color: #1a1a1a; }
+.journal-btn-primary { background: #1a1a1a; color: #ffffff; }
+.journal-btn-ghost { color: inherit; }
+.journal-btn-ghost:hover { background: rgba(0,0,0,0.05); }
+.journal-divider { background: rgba(0,0,0,0.08); }
+
+/* Font families */
+html[data-font='serif'] body { font-family: 'Fraunces', Georgia, serif; }
+html[data-font='sans'] body { font-family: 'Inter', system-ui, sans-serif; }
+html[data-font='mono'] body { font-family: 'JetBrains Mono', monospace; }
+html[data-font='display'] body { font-family: 'Playfair Display', Georgia, serif; }
+
+/* Prose formatting for post content */
+.journal-prose { white-space: pre-wrap; word-wrap: break-word; line-height: 1.75; font-size: 1.0625rem; }
+.journal-prose p { margin-bottom: 1rem; }
+
+/* Smooth transitions */
+* { transition: background-color 0.4s ease, border-color 0.4s ease, color 0.3s ease; }
+
+/* Scrollbar polish */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.25); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.4); }
+
+/* Aspect ratio containers */
+.aspect-16-9 { aspect-ratio: 16 / 9; }
+.aspect-3-4 { aspect-ratio: 3 / 4; }
+
+/* Fade in animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.5s ease forwards; }
